@@ -945,6 +945,10 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     }
   }
 
+  fun setSidebarOpen(open: Boolean) {
+    _uiState.update { if (it.isSidebarOpenLandscape == open) it else it.copy(isSidebarOpenLandscape = open) }
+  }
+
   fun launchTerminalCommand(title: String, command: String, requireUbuntu: Boolean = false) {
     _uiState.update {
       it.copy(

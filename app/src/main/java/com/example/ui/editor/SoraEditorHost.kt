@@ -181,9 +181,12 @@ fun SoraCodeEditorView(
   val currentOnFontSizeChanged by rememberUpdatedState(onFontSizeChanged)
 
   val suppressChangeRef = remember { booleanArrayOf(false) }
-  var loadedPath by remember { mutableStateOf<String?>(null) }
-  var loadedLanguage by remember { mutableStateOf<CodeLanguage?>(null) }
   var editorInstance by remember { mutableStateOf<CodeEditor?>(null) }
+  // Per editor view: when Compose recreates the CodeEditor (layout switch, rotation, tab-host
+  // change) the new view is empty and must be loaded again. Remembering these across instances
+  // left the new editor blank, and the first keystroke then overwrote the file with that blank.
+  var loadedPath by remember(editorInstance) { mutableStateOf<String?>(null) }
+  var loadedLanguage by remember(editorInstance) { mutableStateOf<CodeLanguage?>(null) }
   var lockedInfo by remember { mutableStateOf<String?>(null) }
 
   // Self-heal: Sora silently ignores all typing while isEditable is false (layout "busy"). If it
@@ -261,7 +264,9 @@ fun SoraCodeEditorView(
       onDispose {
         contentReceipt.unsubscribe()
         selectionReceipt.unsubscribe()
-        controller.editor = null
+        // A replacement editor may already be registered; only clear the controller if it still
+        // points at the view being disposed, otherwise toolbar/keyboard-bar buttons go dead.
+        if (controller.editor === ed) controller.editor = null
         ed.release()
       }
     }
@@ -270,18 +275,22 @@ fun SoraCodeEditorView(
   LaunchedEffect(tab.relativePath, editorInstance) {
     val ed = editorInstance ?: return@LaunchedEffect
     if (loadedPath != tab.relativePath) {
+      // suppressChangeRef must never stay true: while it is, typing never reaches the view
+      // model and the editor looks frozen/unsaved. Always reset it, even if loading throws.
       suppressChangeRef[0] = true
-      ed.setText(tab.currentContent)
-      val lang = TextMateSetup.createLanguage(tab.language)
-      ed.setEditorLanguage(lang)
-      val targetLine = (tab.cursorLine - 1).coerceIn(0, (ed.lineCount - 1).coerceAtLeast(0))
-      val maxCol = ed.text.getColumnCount(targetLine)
-      val targetCol = (tab.cursorColumn - 1).coerceIn(0, maxCol)
-      ed.setSelection(targetLine, targetCol)
-      loadedPath = tab.relativePath
-      loadedLanguage = tab.language
-      suppressChangeRef[0] = false
-      currentOnCursorChanged(targetLine + 1, targetCol + 1, "", ed.canUndo(), ed.canRedo())
+      try {
+        ed.setText(tab.currentContent)
+        runCatching { ed.setEditorLanguage(TextMateSetup.createLanguage(tab.language)) }
+        val targetLine = (tab.cursorLine - 1).coerceIn(0, (ed.lineCount - 1).coerceAtLeast(0))
+        val maxCol = ed.text.getColumnCount(targetLine)
+        val targetCol = (tab.cursorColumn - 1).coerceIn(0, maxCol)
+        ed.setSelection(targetLine, targetCol)
+        loadedPath = tab.relativePath
+        loadedLanguage = tab.language
+        currentOnCursorChanged(targetLine + 1, targetCol + 1, "", ed.canUndo(), ed.canRedo())
+      } finally {
+        suppressChangeRef[0] = false
+      }
     } else if (loadedLanguage != tab.language) {
       ed.setEditorLanguage(TextMateSetup.createLanguage(tab.language))
       loadedLanguage = tab.language
@@ -331,7 +340,8 @@ fun SoraCodeEditorView(
       update = { ed ->
         controller.editor = ed
         ed.isWordwrap = wordWrap
-        ed.tabWidth = tabWidth
+        // Sora's setTabWidth re-renders unconditionally; only touch it when the value changes.
+        if (ed.tabWidth != tabWidth) ed.tabWidth = tabWidth
         val density = ed.resources.displayMetrics.scaledDensity
         val currentSp = ed.textSizePx / density
         if (kotlin.math.abs(currentSp - fontSizeSp) > 0.4f) {

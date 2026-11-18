@@ -11,6 +11,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -382,6 +383,7 @@ fun PocketCodeShell(
           IdeLayoutMode.HORIZONTAL_SPLIT -> true
         }
       val isPortraitVerticalChrome = maxWidth < 600.dp
+      val shellMaxWidth = maxWidth
 
       // System Back: leave the current screen / close the bottom terminal instead of exiting the app.
       // (Esc is deliberately NOT mapped to "back": terminal apps like Claude Code and vim need it.)
@@ -430,7 +432,14 @@ fun PocketCodeShell(
             onSave = { viewModel.saveActiveFile() },
           )
 
-          Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+          // On a phone-width screen the sidebar is an overlay (below), never a column beside the
+          // editor: a 220dp sidebar would leave the editor ~140dp wide and effectively unusable.
+          if (isPortraitVerticalChrome) {
+            LaunchedEffect(Unit) { viewModel.setSidebarOpen(false) }
+          }
+
+          Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+          Row(modifier = Modifier.fillMaxSize()) {
             ActivityBar(
               activePanel = state.activeSidebarPanel,
               isSidebarOpen = state.isSidebarOpenLandscape,
@@ -438,34 +447,36 @@ fun PocketCodeShell(
               onSelectPanel = { viewModel.selectSidebarPanel(it) },
             )
 
-            AnimatedVisibility(visible = state.isSidebarOpenLandscape) {
-              Box(
-                modifier =
-                  Modifier.width(sidebarWidth)
-                    .fillMaxHeight()
-                    .border(0.5.dp, palette.border)
-              ) {
-                SidebarContent(
-                  panel = state.activeSidebarPanel,
-                  state = state,
-                  viewModel = viewModel,
-                  editorController = editorController,
-                  onImportFiles = { importFilesLauncher.launch(arrayOf("*/*")) },
-                  onImportZip = {
-                    importZipLauncher.launch(
-                      arrayOf(
-                        "application/zip",
-                        "application/x-zip-compressed",
-                        "application/octet-stream",
+            if (!isPortraitVerticalChrome) {
+              AnimatedVisibility(visible = state.isSidebarOpenLandscape) {
+                Box(
+                  modifier =
+                    Modifier.width(sidebarWidth)
+                      .fillMaxHeight()
+                      .border(0.5.dp, palette.border)
+                ) {
+                  SidebarContent(
+                    panel = state.activeSidebarPanel,
+                    state = state,
+                    viewModel = viewModel,
+                    editorController = editorController,
+                    onImportFiles = { importFilesLauncher.launch(arrayOf("*/*")) },
+                    onImportZip = {
+                      importZipLauncher.launch(
+                        arrayOf(
+                          "application/zip",
+                          "application/x-zip-compressed",
+                          "application/octet-stream",
+                        )
                       )
-                    )
-                  },
-                  onExportZip = { exportZipLauncher.launch("pocketcode-workspace.zip") },
-                  onMountPhoneFolder = { mountPhoneFolderLauncher.launch(null) },
-                  onRequestLocation = onRequestLocation,
-                  onOpenSnippetsPicker = { showSnippetPicker = true },
-                  onOpenLicenses = { showLicensesDialog = true },
-                )
+                    },
+                    onExportZip = { exportZipLauncher.launch("pocketcode-workspace.zip") },
+                    onMountPhoneFolder = { mountPhoneFolderLauncher.launch(null) },
+                    onRequestLocation = onRequestLocation,
+                    onOpenSnippetsPicker = { showSnippetPicker = true },
+                    onOpenLicenses = { showLicensesDialog = true },
+                  )
+                }
               }
             }
 
@@ -504,6 +515,55 @@ fun PocketCodeShell(
                 }
               }
             }
+          }
+
+          if (isPortraitVerticalChrome && state.isSidebarOpenLandscape) {
+            Row(modifier = Modifier.fillMaxSize()) {
+              Spacer(Modifier.width(46.dp))
+              Box(
+                modifier =
+                  Modifier.width(sidebarWidth.coerceAtMost(shellMaxWidth - 46.dp - 40.dp))
+                    .fillMaxHeight()
+                    .background(palette.sidebarBg)
+                    .border(0.5.dp, palette.border)
+                    .testTag("sidebar_overlay")
+              ) {
+                SidebarContent(
+                  panel = state.activeSidebarPanel,
+                  state = state,
+                  viewModel = viewModel,
+                  editorController = editorController,
+                  onImportFiles = { importFilesLauncher.launch(arrayOf("*/*")) },
+                  onImportZip = {
+                    importZipLauncher.launch(
+                      arrayOf(
+                        "application/zip",
+                        "application/x-zip-compressed",
+                        "application/octet-stream",
+                      )
+                    )
+                  },
+                  onExportZip = { exportZipLauncher.launch("pocketcode-workspace.zip") },
+                  onMountPhoneFolder = { mountPhoneFolderLauncher.launch(null) },
+                  onRequestLocation = onRequestLocation,
+                  onOpenSnippetsPicker = { showSnippetPicker = true },
+                  onOpenLicenses = { showLicensesDialog = true },
+                )
+              }
+              // Tap outside the sidebar to dismiss it.
+              Box(
+                modifier =
+                  Modifier.weight(1f)
+                    .fillMaxHeight()
+                    .clickable(
+                      interactionSource = remember { MutableInteractionSource() },
+                      indication = null,
+                    ) {
+                      viewModel.setSidebarOpen(false)
+                    }
+              )
+            }
+          }
           }
 
           IdeStatusBar(
