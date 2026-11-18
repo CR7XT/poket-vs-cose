@@ -1,0 +1,23 @@
+{
+  "name": "Tokyo Night",
+  "type": "dark",
+  "colors": {
+    "editor.background": "#1A1B26",
+    "editor.foreground": "#A9B1D6",
+    "editorLineNumber.foreground": "#565F89",
+    "editorLineNumber.activeForeground": "#A9B1D6",
+    "editorCursor.foreground": "#C0CAF5",
+    "editor.selectionBackground": "#283457",
+    "editor.lineHighlightBackground": "#1E202E"
+  },
+  "tokenColors": [
+    { "scope": ["comment", "punctuation.definition.comment"], "settings": { "foreground": "#565F89", "fontStyle": "italic" } },
+    { "scope": ["string", "string.quoted", "string.template"], "settings": { "foreground": "#9ECE6A" } },
+    { "scope": ["constant.numeric", "constant.language.boolean"], "settings": { "foreground": "#FF9E64" } },
+    { "scope": ["keyword", "storage.type", "keyword.control"], "settings": { "foreground": "#BB9AF7" } },
+    { "scope": ["entity.name.function", "support.function"], "settings": { "foreground": "#7AA2F7" } },
+    { "scope": ["entity.name.type", "entity.name.class", "support.type"], "settings": { "foreground": "#2AC3DE" } },
+    { "scope": ["variable", "support.type.property-name.json"], "settings": { "foreground": "#73DACA" } },
+    { "scope": ["entity.name.tag", "markup.heading"], "settings": { "foreground": "#F7768E", "fontStyle": "bold" } }
+  ]
+}

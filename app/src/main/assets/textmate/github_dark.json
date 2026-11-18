@@ -1,0 +1,23 @@
+{
+  "name": "GitHub Dark Default",
+  "type": "dark",
+  "colors": {
+    "editor.background": "#0D1117",
+    "editor.foreground": "#E6EDF3",
+    "editorLineNumber.foreground": "#6E7681",
+    "editorLineNumber.activeForeground": "#E6EDF3",
+    "editorCursor.foreground": "#58A6FF",
+    "editor.selectionBackground": "#264F78",
+    "editor.lineHighlightBackground": "#161B22"
+  },
+  "tokenColors": [
+    { "scope": ["comment", "punctuation.definition.comment"], "settings": { "foreground": "#8B949E", "fontStyle": "italic" } },
+    { "scope": ["string", "string.quoted", "string.template"], "settings": { "foreground": "#A5D6FF" } },
+    { "scope": ["constant.numeric", "constant.language.boolean"], "settings": { "foreground": "#79C0FF" } },
+    { "scope": ["keyword", "storage.type", "keyword.control"], "settings": { "foreground": "#FF7B72" } },
+    { "scope": ["entity.name.function", "support.function"], "settings": { "foreground": "#D2A8FF" } },
+    { "scope": ["entity.name.type", "entity.name.class", "support.type"], "settings": { "foreground": "#FFA657" } },
+    { "scope": ["variable", "support.type.property-name.json"], "settings": { "foreground": "#7EE787" } },
+    { "scope": ["entity.name.tag", "markup.heading"], "settings": { "foreground": "#7EE787", "fontStyle": "bold" } }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "PocketCode",
+  "description": "Mobile-first VS Code-style code editor, Git client, and terminal workspace for Android.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

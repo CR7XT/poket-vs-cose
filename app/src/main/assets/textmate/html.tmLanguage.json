@@ -1,0 +1,12 @@
+{
+  "scopeName": "text.html.basic",
+  "name": "HTML",
+  "patterns": [
+    { "begin": "<!--", "end": "-->", "name": "comment.block.html" },
+    { "begin": "\"", "end": "\"", "name": "string.quoted.double.html" },
+    { "begin": "'", "end": "'", "name": "string.quoted.single.html" },
+    { "match": "</?[A-Za-z][A-Za-z0-9-]*", "name": "entity.name.tag.html" },
+    { "match": "/?>", "name": "punctuation.definition.tag.end.html" },
+    { "match": "\\b[A-Za-z-]+(?==)", "name": "entity.other.attribute-name.html" }
+  ]
+}

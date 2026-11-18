@@ -1,0 +1,13 @@
+{
+  "scopeName": "source.shell",
+  "name": "Shell Script",
+  "patterns": [
+    { "match": "#.*$", "name": "comment.line.number-sign.shell" },
+    { "begin": "\"", "end": "\"", "name": "string.quoted.double.shell", "patterns": [{ "match": "\\\\.", "name": "constant.character.escape.shell" }, { "match": "\\$\\{?[A-Za-z_][A-Za-z0-9_]*\\}?", "name": "variable.other.shell" }] },
+    { "begin": "'", "end": "'", "name": "string.quoted.single.shell" },
+    { "match": "\\$\\{?[A-Za-z_][A-Za-z0-9_?@#]*\\}?", "name": "variable.other.shell" },
+    { "match": "\\b(if|then|elif|else|fi|for|in|do|done|while|until|case|esac|function|return|exit|export|local|readonly|source)\\b", "name": "keyword.control.shell" },
+    { "match": "\\b(echo|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|curl|wget|chmod|chown|tar|git|npm|node|python3|apt|pkg)\\b", "name": "support.function.builtin.shell" },
+    { "match": "\\b[0-9]+\\b", "name": "constant.numeric.shell" }
+  ]
+}

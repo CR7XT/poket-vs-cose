@@ -1,0 +1,14 @@
+{
+  "scopeName": "text.html.markdown",
+  "name": "Markdown",
+  "patterns": [
+    { "match": "^#{1,6}\\s+.*$", "name": "markup.heading.markdown" },
+    { "begin": "^```.*$", "end": "^```\\s*$", "name": "markup.fenced_code.block.markdown" },
+    { "match": "`[^`]+`", "name": "markup.inline.raw.markdown" },
+    { "match": "\\*\\*[^*]+\\*\\*|__[^_]+__", "name": "markup.bold.markdown" },
+    { "match": "\\*[^*]+\\*|_[^_]+_", "name": "markup.italic.markdown" },
+    { "match": "^>\\s+.*$", "name": "markup.quote.markdown" },
+    { "match": "\\[[^\\]]+\\]\\([^)]+\\)", "name": "string.other.link.markdown" },
+    { "match": "^\\s*[-*+]\\s+|^\\s*[0-9]+\\.\\s+", "name": "keyword.control.list.markdown" }
+  ]
+}

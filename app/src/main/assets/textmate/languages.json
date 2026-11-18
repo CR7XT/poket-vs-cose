@@ -1,0 +1,52 @@
+{
+  "languages": [
+    {
+      "grammar": "textmate/python.tmLanguage.json",
+      "name": "python",
+      "scopeName": "source.python",
+      "languageConfiguration": "textmate/language-configuration.json"
+    },
+    {
+      "grammar": "textmate/javascript.tmLanguage.json",
+      "name": "javascript",
+      "scopeName": "source.js",
+      "languageConfiguration": "textmate/language-configuration.json"
+    },
+    {
+      "grammar": "textmate/typescript.tmLanguage.json",
+      "name": "typescript",
+      "scopeName": "source.ts",
+      "languageConfiguration": "textmate/language-configuration.json"
+    },
+    {
+      "grammar": "textmate/json.tmLanguage.json",
+      "name": "json",
+      "scopeName": "source.json",
+      "languageConfiguration": "textmate/language-configuration.json"
+    },
+    {
+      "grammar": "textmate/html.tmLanguage.json",
+      "name": "html",
+      "scopeName": "text.html.basic",
+      "languageConfiguration": "textmate/language-configuration.json"
+    },
+    {
+      "grammar": "textmate/css.tmLanguage.json",
+      "name": "css",
+      "scopeName": "source.css",
+      "languageConfiguration": "textmate/language-configuration.json"
+    },
+    {
+      "grammar": "textmate/markdown.tmLanguage.json",
+      "name": "markdown",
+      "scopeName": "text.html.markdown",
+      "languageConfiguration": "textmate/language-configuration.json"
+    },
+    {
+      "grammar": "textmate/shellscript.tmLanguage.json",
+      "name": "shellscript",
+      "scopeName": "source.shell",
+      "languageConfiguration": "textmate/language-configuration.json"
+    }
+  ]
+}

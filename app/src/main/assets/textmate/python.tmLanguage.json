@@ -1,0 +1,19 @@
+{
+  "scopeName": "source.python",
+  "name": "Python",
+  "patterns": [
+    { "match": "#.*$", "name": "comment.line.number-sign.python" },
+    { "begin": "\"\"\"", "end": "\"\"\"", "name": "string.quoted.triple.python" },
+    { "begin": "'''", "end": "'''", "name": "string.quoted.triple.python" },
+    { "begin": "\"", "end": "\"", "name": "string.quoted.double.python", "patterns": [{ "match": "\\\\.", "name": "constant.character.escape.python" }] },
+    { "begin": "'", "end": "'", "name": "string.quoted.single.python", "patterns": [{ "match": "\\\\.", "name": "constant.character.escape.python" }] },
+    { "match": "\\b(True|False|None)\\b", "name": "constant.language.boolean.python" },
+    { "match": "\\b(if|elif|else|for|while|break|continue|return|yield|try|except|finally|raise|with|as|import|from|pass|assert|match|case)\\b", "name": "keyword.control.python" },
+    { "match": "\\b(def|class|lambda|async|await|global|nonlocal|del|in|is|not|and|or)\\b", "name": "keyword.operator.python" },
+    { "match": "@[A-Za-z_][A-Za-z0-9_.]*", "name": "entity.name.function.decorator.python" },
+    { "match": "\\b(print|len|range|str|int|float|list|dict|set|tuple|enumerate|zip|open|isinstance|type|super)\\b", "name": "support.function.builtin.python" },
+    { "match": "(?<=def\\s)[A-Za-z_][A-Za-z0-9_]*", "name": "entity.name.function.python" },
+    { "match": "(?<=class\\s)[A-Za-z_][A-Za-z0-9_]*", "name": "entity.name.type.class.python" },
+    { "match": "\\b[0-9]+(\\.[0-9]+)?\\b", "name": "constant.numeric.python" }
+  ]
+}
