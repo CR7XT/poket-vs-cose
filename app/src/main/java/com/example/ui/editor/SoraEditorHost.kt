@@ -23,6 +23,8 @@ import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.widget.EditorSearcher
 import io.github.rosemoe.sora.widget.SelectionMovement
 
+private const val BUSY_WATCHDOG_MS = 800L
+
 enum class CursorDirection {
   LEFT,
   RIGHT,
@@ -237,6 +239,13 @@ fun SoraCodeEditorView(
       loadedPath = tab.relativePath
       loadedLanguage = tab.language
       suppressChangeRef[0] = false
+      // Sora reports isEditable == false while its async layout is "busy" and ignores all typing
+      // until that finishes. If the completion callback is ever lost (view re-attached, lifecycle
+      // race, new empty file) the editor stays read-only forever. Force it back to usable.
+      ed.postDelayed(
+        { if (ed.editable && !ed.isEditable) ed.setLayoutBusy(false) },
+        BUSY_WATCHDOG_MS,
+      )
       currentOnCursorChanged(targetLine + 1, targetCol + 1, "", ed.canUndo(), ed.canRedo())
     } else if (loadedLanguage != tab.language) {
       ed.setEditorLanguage(TextMateSetup.createLanguage(tab.language))

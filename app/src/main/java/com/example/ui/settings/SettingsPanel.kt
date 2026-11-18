@@ -57,6 +57,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.device.DeviceContextSnapshot
@@ -109,6 +112,7 @@ fun SettingsPanel(
   onRefreshDeviceContext: () -> Unit,
   onOpenLicenses: () -> Unit,
   modifier: Modifier = Modifier,
+  onInstallInUbuntu: (title: String, command: String) -> Unit = { _, _ -> },
 ) {
   val palette = LocalIdePalette.current
   var wsInput by remember(webSocketUrl) { mutableStateOf(webSocketUrl) }
@@ -137,6 +141,13 @@ fun SettingsPanel(
           .padding(12.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+      SettingsSectionCard(icon = Icons.Default.Extension, title = "Languages, Packages & Extensions", initiallyExpanded = true) {
+        RuntimesAndPackagesCard(onInstall = onInstallInUbuntu)
+      }
+      SettingsSectionCard(icon = Icons.Default.FolderShared, title = "Android Storage Access", initiallyExpanded = true) {
+        AllFilesAccessCard()
+      }
+
       // 1. Workspace Layout (Vertical / Horizontal / Auto) & Windows Mode
       SettingsSectionCard(icon = Icons.Default.DesktopWindows, title = "Workspace Layout & Keyboard/Mouse") {
         Text(
@@ -579,12 +590,14 @@ fun SettingsPanel(
 }
 
 @Composable
-private fun SettingsSectionCard(
+internal fun SettingsSectionCard(
   icon: ImageVector,
   title: String,
+  initiallyExpanded: Boolean = false,
   content: @Composable () -> Unit,
 ) {
   val palette = LocalIdePalette.current
+  var expanded by rememberSaveable(title) { mutableStateOf(initiallyExpanded) }
   Column(
     modifier =
       Modifier.fillMaxWidth()
@@ -594,7 +607,10 @@ private fun SettingsSectionCard(
         .padding(12.dp),
     verticalArrangement = Arrangement.spacedBy(8.dp),
   ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+      modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
       Icon(icon, contentDescription = null, tint = palette.accent, modifier = Modifier.size(16.dp))
       Spacer(Modifier.width(8.dp))
       Text(
@@ -602,9 +618,16 @@ private fun SettingsSectionCard(
         color = palette.textPrimary,
         fontSize = 13.sp,
         fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.weight(1f),
+      )
+      Icon(
+        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+        contentDescription = if (expanded) "Collapse" else "Expand",
+        tint = palette.textMuted,
+        modifier = Modifier.size(18.dp),
       )
     }
-    content()
+    if (expanded) content()
   }
 }
 

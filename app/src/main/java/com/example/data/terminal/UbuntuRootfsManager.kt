@@ -2,6 +2,7 @@ package com.example.data.terminal
 
 import android.content.Context
 import android.os.Build
+import android.os.Environment
 import android.system.Os
 import java.io.BufferedInputStream
 import java.io.File
@@ -196,6 +197,17 @@ class UbuntuRootfsManager(
       "/sys",
       "-b",
       "${workspaceDir.absolutePath}:/workspace",
+    )
+    // With "All files access" granted, expose the phone's shared storage inside Ubuntu.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+      runCatching { Environment.isExternalStorageManager() }.getOrDefault(false)) {
+      val shared = Environment.getExternalStorageDirectory()
+      if (shared.exists()) {
+        args += "-b"
+        args += "${shared.absolutePath}:/sdcard"
+      }
+    }
+    args += listOf(
       "-w",
       "/workspace",
       "/usr/bin/env",
