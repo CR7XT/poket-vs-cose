@@ -710,7 +710,7 @@ fun PocketCodeShell(
                   onSaveLocationJson = { viewModel.saveLocationToWorkspace() },
                   onRefreshDeviceContext = { viewModel.refreshDeviceContext() },
                   onOpenLicenses = { showLicensesDialog = true },
-                  onInstallInUbuntu = { t, c -> viewModel.launchTerminalCommand(t, c) },
+                  onInstallInUbuntu = { t, c -> viewModel.launchTerminalCommand(t, c, requireUbuntu = true) },
                 )
               }
             }
@@ -1287,7 +1287,7 @@ private fun SidebarContent(
         onSaveLocationJson = { viewModel.saveLocationToWorkspace() },
         onRefreshDeviceContext = { viewModel.refreshDeviceContext() },
         onOpenLicenses = onOpenLicenses,
-        onInstallInUbuntu = { t, c -> viewModel.launchTerminalCommand(t, c) },
+        onInstallInUbuntu = { t, c -> viewModel.launchTerminalCommand(t, c, requireUbuntu = true) },
       )
   }
 }

@@ -198,9 +198,15 @@ class UbuntuRootfsManager(
       "-b",
       "${workspaceDir.absolutePath}:/workspace",
     )
-    // With "All files access" granted, expose the phone's shared storage inside Ubuntu.
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-      runCatching { Environment.isExternalStorageManager() }.getOrDefault(false)) {
+    // With storage access granted, expose the phone's shared storage inside Ubuntu.
+    val storageGranted =
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        runCatching { Environment.isExternalStorageManager() }.getOrDefault(false)
+      } else {
+        context.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+          android.content.pm.PackageManager.PERMISSION_GRANTED
+      }
+    if (storageGranted) {
       val shared = Environment.getExternalStorageDirectory()
       if (shared.exists()) {
         args += "-b"

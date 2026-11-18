@@ -9,7 +9,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.res.ResourcesCompat
 import com.example.R
@@ -170,6 +182,29 @@ fun SoraCodeEditorView(
   var loadedPath by remember { mutableStateOf<String?>(null) }
   var loadedLanguage by remember { mutableStateOf<CodeLanguage?>(null) }
   var editorInstance by remember { mutableStateOf<CodeEditor?>(null) }
+  var lockedInfo by remember { mutableStateOf<String?>(null) }
+
+  // Self-heal: Sora silently ignores all typing while isEditable is false (layout "busy"). If it
+  // stays that way, unlock it and, if it still will not accept input, show why on screen.
+  LaunchedEffect(editorInstance) {
+    val ed = editorInstance ?: return@LaunchedEffect
+    var lockedTicks = 0
+    while (true) {
+      delay(400)
+      if (ed.isEditable) {
+        lockedTicks = 0
+        if (lockedInfo != null) lockedInfo = null
+      } else {
+        lockedTicks++
+        if (ed.editable && !ed.isFormatting) runCatching { ed.setLayoutBusy(false) }
+        if (lockedTicks >= 3) {
+          lockedInfo =
+            "Editor locked (editable=${ed.editable}, formatting=${ed.isFormatting}, " +
+              "enabled=${ed.isEnabled}). Tap to unlock."
+        }
+      }
+    }
+  }
 
   DisposableEffect(editorInstance) {
     val ed = editorInstance
@@ -266,43 +301,69 @@ fun SoraCodeEditorView(
     }
   }
 
-  AndroidView(
-    modifier = modifier,
-    factory = { ctx ->
-      TextMateSetup.ensureInitialized(ctx)
-      TextMateSetup.setTheme(themeId)
-      CodeEditor(ctx).apply {
-        colorScheme = TextMateSetup.createColorScheme()
-        val mono = ResourcesCompat.getFont(ctx, R.font.jetbrains_mono)
-        if (mono != null) {
-          typefaceText = mono
-          typefaceLineNumber = mono
+  Box(modifier = modifier) {
+    AndroidView(
+      modifier = Modifier.fillMaxSize(),
+      factory = { ctx ->
+        TextMateSetup.ensureInitialized(ctx)
+        TextMateSetup.setTheme(themeId)
+        CodeEditor(ctx).apply {
+          colorScheme = TextMateSetup.createColorScheme()
+          val mono = ResourcesCompat.getFont(ctx, R.font.jetbrains_mono)
+          if (mono != null) {
+            typefaceText = mono
+            typefaceLineNumber = mono
+          }
+          setTextSize(fontSizeSp)
+          isWordwrap = wordWrap
+          isScalable = true
+          this.tabWidth = tabWidth
+          isLineNumberEnabled = true
+          setPinLineNumber(true)
+          props.symbolPairAutoCompletion = true
+          setOnScaleListenerCompat(this) { scaledSp ->
+            currentOnFontSizeChanged(scaledSp)
+          }
+          controller.editor = this
+          editorInstance = this
         }
-        setTextSize(fontSizeSp)
-        isWordwrap = wordWrap
-        isScalable = true
-        this.tabWidth = tabWidth
-        isLineNumberEnabled = true
-        setPinLineNumber(true)
-        props.symbolPairAutoCompletion = true
-        setOnScaleListenerCompat(this) { scaledSp ->
-          currentOnFontSizeChanged(scaledSp)
+      },
+      update = { ed ->
+        controller.editor = ed
+        ed.isWordwrap = wordWrap
+        ed.tabWidth = tabWidth
+        val density = ed.resources.displayMetrics.scaledDensity
+        val currentSp = ed.textSizePx / density
+        if (kotlin.math.abs(currentSp - fontSizeSp) > 0.4f) {
+          ed.setTextSize(fontSizeSp)
         }
-        controller.editor = this
-        editorInstance = this
-      }
-    },
-    update = { ed ->
-      controller.editor = ed
-      ed.isWordwrap = wordWrap
-      ed.tabWidth = tabWidth
-      val density = ed.resources.displayMetrics.scaledDensity
-      val currentSp = ed.textSizePx / density
-      if (kotlin.math.abs(currentSp - fontSizeSp) > 0.4f) {
-        ed.setTextSize(fontSizeSp)
-      }
-    },
-  )
+      },
+    )
+
+    lockedInfo?.let { info ->
+      Text(
+        text = info,
+        color = Color.White,
+        fontSize = 11.sp,
+        modifier =
+          Modifier.align(Alignment.TopEnd)
+            .padding(6.dp)
+            .background(Color(0xCCB00020))
+            .clickable {
+              editorInstance?.let { e ->
+                runCatching {
+                  e.setLayoutBusy(false)
+                  e.setEditable(true)
+                  e.requestFocus()
+                }
+              }
+              lockedInfo = null
+            }
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .testTag("editor_locked_banner"),
+      )
+    }
+  }
 }
 
 private fun setOnScaleListenerCompat(editor: CodeEditor, onScaleSp: (Float) -> Unit) {
