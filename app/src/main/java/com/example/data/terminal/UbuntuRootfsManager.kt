@@ -171,7 +171,18 @@ class UbuntuRootfsManager(
         ?: throw IllegalStateException(
           "libproot.so is not present in ${diag.nativeLibraryDir}. Android 10+ W^X blocks executing downloaded ELF binaries directly from writable app storage."
         )
+    // Android has no /etc/resolv.conf; without it apt/curl/npm cannot resolve hostnames.
+    runCatching {
+      val resolv = File(rootfsDir, "etc/resolv.conf")
+      if (!resolv.exists() || resolv.length() == 0L) {
+        resolv.parentFile?.mkdirs()
+        resolv.writeText("nameserver 8.8.8.8\nnameserver 1.1.1.1\n")
+      }
+    }
+    File(context.cacheDir, "proot-tmp").mkdirs()
     val args = mutableListOf(
+      "--link2symlink",
+      "--kill-on-exit",
       "-0",
       "-r",
       rootfsDir.absolutePath,
@@ -199,6 +210,16 @@ class UbuntuRootfsManager(
       args += "--login"
     }
     return prootPath to args.toTypedArray()
+  }
+
+  /** Environment proot needs on Android: unbundled loader shipped as a native lib + a writable tmp dir. */
+  fun prootEnv(): List<String> {
+    val nativeDirPath = context.applicationInfo.nativeLibraryDir ?: return emptyList()
+    return listOf(
+      "PROOT_LOADER=$nativeDirPath/libproot-loader.so",
+      "PROOT_TMP_DIR=${File(context.cacheDir, "proot-tmp").absolutePath}",
+      "PROOT_NO_SECCOMP=1",
+    )
   }
 
   fun buildSetupAiClisCommand(): String =
