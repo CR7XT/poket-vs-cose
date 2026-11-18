@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Terminal
@@ -63,6 +65,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.res.ResourcesCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -93,6 +97,7 @@ data class PtySessionTab(
   val executable: String,
   val args: Array<String>,
   val initialCommand: String? = null,
+  val extraEnv: List<String> = emptyList(),
 )
 
 class TerminalLaunchRequest(
@@ -100,6 +105,18 @@ class TerminalLaunchRequest(
   val command: String,
   val useProotIfAvailable: Boolean = true,
 )
+
+/**
+ * Reports zero size to the parent (takes no layout space) but still measures the child at the
+ * real constraints. Collapsing a TerminalView to 0x0 makes Termux resize the emulator to 4x4,
+ * which reflows and mangles the scrollback; this keeps the emulator at a sane size while hidden.
+ * The hosted AndroidView is also set INVISIBLE, so nothing draws or takes touches.
+ */
+fun Modifier.hiddenButMeasured(): Modifier =
+  this.layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+    layout(0, 0) { placeable.place(0, 0) }
+  }.clipToBounds()
 
 @Composable
 fun TerminalPanel(
@@ -115,6 +132,8 @@ fun TerminalPanel(
   modifier: Modifier = Modifier,
   isContainerVisible: Boolean = true,
   onClose: (() -> Unit)? = null,
+  isTall: Boolean = false,
+  onToggleSize: (() -> Unit)? = null,
 ) {
   val palette = LocalIdePalette.current
   val context = LocalContext.current
@@ -151,6 +170,7 @@ fun TerminalPanel(
         executable = exe,
         args = args,
         initialCommand = null,
+        extraEnv = rootfsManager.prootEnv(),
       )
     ptyTabs += tab
     activePtyTabId = tab.id
@@ -224,6 +244,19 @@ fun TerminalPanel(
           Icon(Icons.Default.Add, contentDescription = "New Shell Tab", tint = palette.textPrimary, modifier = Modifier.size(16.dp))
         }
       }
+      if (onToggleSize != null) {
+        IconButton(
+          onClick = onToggleSize,
+          modifier = Modifier.size(30.dp).testTag("terminal_size_button"),
+        ) {
+          Icon(
+            if (isTall) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+            contentDescription = if (isTall) "Shrink terminal" else "Enlarge terminal",
+            tint = palette.textPrimary,
+            modifier = Modifier.size(18.dp),
+          )
+        }
+      }
     }
 
     when (activeMode) {
@@ -283,7 +316,7 @@ fun TerminalPanel(
                   windowsCommandAliases = windowsCommandAliases,
                   context = context,
                   isVisible = isContainerVisible && isActive,
-                  modifier = if (isActive) Modifier.fillMaxSize() else Modifier.size(0.dp),
+                  modifier = if (isActive) Modifier.fillMaxSize() else Modifier.hiddenButMeasured(),
                 )
               }
             }
@@ -486,6 +519,7 @@ private fun TermuxPtyView(
             "PATH=/system/bin:/system/xbin",
             "PWD=${workspaceRoot.absolutePath}",
           )
+        envList += tab.extraEnv
         if (windowsCommandAliases && tab.executable == "/system/bin/sh") {
           val rcFile = File(ctx.cacheDir, ".pocketcode_shrc")
           runCatching {
@@ -525,6 +559,7 @@ private fun TermuxPtyView(
       },
       update = { view ->
         viewRef = view
+        view.visibility = if (isVisible) android.view.View.VISIBLE else android.view.View.INVISIBLE
       },
     )
 

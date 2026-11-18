@@ -77,6 +77,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.example.ui.terminal.hiddenButMeasured
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -518,6 +520,7 @@ fun PocketCodeShell(
         }
       } else {
         var filesModeSearch by remember { mutableStateOf(false) }
+        var terminalTall by remember { mutableStateOf(false) }
 
         Column(modifier = Modifier.fillMaxSize()) {
           TopCommandBar(
@@ -541,8 +544,13 @@ fun PocketCodeShell(
             onSave = { viewModel.saveActiveFile() },
           )
 
-          Box(modifier = Modifier.weight(1f).fillMaxWidth().imePadding()) {
-            when (state.portraitDestination) {
+          Column(modifier = Modifier.weight(1f).fillMaxWidth().imePadding()) {
+            val terminalShown = state.portraitDestination == PortraitDestination.TERMINAL
+            // Terminal is a bottom panel (like VS Code): the editor stays visible above it.
+            val contentDest =
+              if (terminalShown) PortraitDestination.EDITOR else state.portraitDestination
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            when (contentDest) {
               PortraitDestination.FILES -> {
                 Column(modifier = Modifier.fillMaxSize()) {
                   Row(
@@ -706,11 +714,19 @@ fun PocketCodeShell(
               }
             }
 
-            // Keep-alive terminal host: mounted on first use and only resized to 0 when another
-            // screen is selected, so running sessions survive navigation.
-            val terminalShown = state.portraitDestination == PortraitDestination.TERMINAL
+            }
+
+            // Keep-alive terminal host: mounted on first use; when another screen is selected it
+            // takes no layout space and is INVISIBLE, so running sessions survive navigation.
             if (hasOpenedTerminalOnce || terminalShown) {
-              Box(modifier = if (terminalShown) Modifier.fillMaxSize() else Modifier.size(0.dp)) {
+              Box(
+                modifier =
+                  if (terminalShown) {
+                    Modifier.weight(if (terminalTall) 3f else 1f).fillMaxWidth().clipToBounds()
+                  } else {
+                    Modifier.hiddenButMeasured()
+                  }
+              ) {
                 TerminalPanel(
                   workspaceRoot = viewModel.repository.workspaceRoot,
                   defaultMode = state.defaultTerminalMode,
@@ -723,6 +739,8 @@ fun PocketCodeShell(
                   onSaveWebSocketUrl = { viewModel.updateWebSocketUrl(it) },
                   isContainerVisible = terminalShown,
                   onClose = { viewModel.selectPortraitDestination(PortraitDestination.EDITOR) },
+                  isTall = terminalTall,
+                  onToggleSize = { terminalTall = !terminalTall },
                 )
               }
             }
