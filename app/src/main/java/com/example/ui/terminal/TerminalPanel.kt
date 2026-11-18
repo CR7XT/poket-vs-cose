@@ -114,6 +114,7 @@ fun TerminalPanel(
   onSaveWebSocketUrl: (String) -> Unit,
   modifier: Modifier = Modifier,
   isContainerVisible: Boolean = true,
+  onClose: (() -> Unit)? = null,
 ) {
   val palette = LocalIdePalette.current
   val context = LocalContext.current
@@ -183,6 +184,19 @@ fun TerminalPanel(
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+      if (onClose != null) {
+        IconButton(
+          onClick = onClose,
+          modifier = Modifier.size(30.dp).testTag("terminal_close_button"),
+        ) {
+          Icon(
+            Icons.Default.Close,
+            contentDescription = "Close terminal",
+            tint = palette.textPrimary,
+            modifier = Modifier.size(16.dp),
+          )
+        }
+      }
       TerminalMode.entries.forEach { mode ->
         val selected = activeMode == mode
         Box(
@@ -324,7 +338,7 @@ private fun TermuxPtyView(
 
   DisposableEffect(tab.id) {
     onDispose {
-      sessionRef?.finishIfRunning()
+      runCatching { sessionRef?.finishIfRunning() }
     }
   }
 
@@ -332,6 +346,12 @@ private fun TermuxPtyView(
     val view = viewRef ?: return@LaunchedEffect
     if (isVisible) {
       view.post { view.updateSize() }
+    } else {
+      // Terminal is kept alive while hidden: release focus and the keyboard so keystrokes
+      // stop going to the hidden PTY and the IME does not stay stuck open on other screens.
+      view.clearFocus()
+      (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
+        ?.hideSoftInputFromWindow(view.windowToken, 0)
     }
   }
 

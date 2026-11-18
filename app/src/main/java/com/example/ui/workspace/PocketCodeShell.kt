@@ -167,8 +167,16 @@ fun PocketCodeShell(
     }
   }
 
-  LaunchedEffect(state.isBottomTerminalOpenLandscape, state.pendingTerminalLaunch) {
-    if (state.isBottomTerminalOpenLandscape || state.pendingTerminalLaunch != null) {
+  LaunchedEffect(
+    state.isBottomTerminalOpenLandscape,
+    state.pendingTerminalLaunch,
+    state.portraitDestination,
+  ) {
+    if (
+      state.isBottomTerminalOpenLandscape ||
+        state.pendingTerminalLaunch != null ||
+        state.portraitDestination == PortraitDestination.TERMINAL
+    ) {
       hasOpenedTerminalOnce = true
     }
   }
@@ -290,10 +298,6 @@ fun PocketCodeShell(
       )
     }
 
-  if (state.portraitDestination != PortraitDestination.EDITOR) {
-    BackHandler { viewModel.selectPortraitDestination(PortraitDestination.EDITOR) }
-  }
-
   val onRequestLocation: () -> Unit = {
     if (viewModel.phoneAccessManager.hasLocationPermission()) {
       viewModel.fetchDeviceLocation()
@@ -376,6 +380,18 @@ fun PocketCodeShell(
           IdeLayoutMode.HORIZONTAL_SPLIT -> true
         }
       val isPortraitVerticalChrome = maxWidth < 600.dp
+
+      // System Back: leave the current screen / close the bottom terminal instead of exiting the app.
+      // (Esc is deliberately NOT mapped to "back": terminal apps like Claude Code and vim need it.)
+      BackHandler(
+        enabled =
+          !useDesktopVsCodeChrome && state.portraitDestination != PortraitDestination.EDITOR
+      ) {
+        viewModel.selectPortraitDestination(PortraitDestination.EDITOR)
+      }
+      BackHandler(enabled = useDesktopVsCodeChrome && state.isBottomTerminalOpenLandscape) {
+        viewModel.selectSidebarPanel(SidebarPanel.TERMINAL)
+      }
 
       if (useDesktopVsCodeChrome) {
         val sidebarWidth = if (isPortraitVerticalChrome) 220.dp else 264.dp
@@ -481,6 +497,7 @@ fun PocketCodeShell(
                     onLaunchRequestConsumed = { viewModel.clearPendingTerminalLaunch() },
                     onSaveWebSocketUrl = { viewModel.updateWebSocketUrl(it) },
                     isContainerVisible = animatedTerminalHeight > 0.dp,
+                    onClose = { viewModel.selectSidebarPanel(SidebarPanel.TERMINAL) },
                   )
                 }
               }
@@ -621,25 +638,15 @@ fun PocketCodeShell(
                   onOpenTasksJson = { viewModel.openTasksJson() },
                 )
               }
-              PortraitDestination.TERMINAL -> {
-                TerminalPanel(
-                  workspaceRoot = viewModel.repository.workspaceRoot,
-                  defaultMode = state.defaultTerminalMode,
-                  defaultWebSocketUrl = state.webSocketUrl,
-                  windowsCommandAliases = state.windowsCommandAliases,
-                  rootfsManager = viewModel.rootfsManager,
-                  wsClient = viewModel.wsTerminalClient,
-                  pendingLaunchRequest = state.pendingTerminalLaunch,
-                  onLaunchRequestConsumed = { viewModel.clearPendingTerminalLaunch() },
-                  onSaveWebSocketUrl = { viewModel.updateWebSocketUrl(it) },
-                )
-              }
+              // Rendered by the keep-alive terminal host below, so switching screens never
+              // tears down running PTY sessions (Claude Code, Gemini CLI, shells).
+              PortraitDestination.TERMINAL -> Unit
               PortraitDestination.GIT -> {
                 GitPanel(
                   snapshot = state.gitSnapshot,
                   isBusy = state.gitBusy,
                   errorBanner = state.gitError,
-                  savedTokenPresent = viewModel.securePrefs.getGitToken().isNotBlank(),
+                  savedTokenPresent = state.hasGitToken,
                   diffTarget = state.diffTarget,
                   diffLines = state.diffLines,
                   onDismissError = { viewModel.dismissGitError() },
@@ -695,6 +702,27 @@ fun PocketCodeShell(
                   onSaveLocationJson = { viewModel.saveLocationToWorkspace() },
                   onRefreshDeviceContext = { viewModel.refreshDeviceContext() },
                   onOpenLicenses = { showLicensesDialog = true },
+                )
+              }
+            }
+
+            // Keep-alive terminal host: mounted on first use and only resized to 0 when another
+            // screen is selected, so running sessions survive navigation.
+            val terminalShown = state.portraitDestination == PortraitDestination.TERMINAL
+            if (hasOpenedTerminalOnce || terminalShown) {
+              Box(modifier = if (terminalShown) Modifier.fillMaxSize() else Modifier.size(0.dp)) {
+                TerminalPanel(
+                  workspaceRoot = viewModel.repository.workspaceRoot,
+                  defaultMode = state.defaultTerminalMode,
+                  defaultWebSocketUrl = state.webSocketUrl,
+                  windowsCommandAliases = state.windowsCommandAliases,
+                  rootfsManager = viewModel.rootfsManager,
+                  wsClient = viewModel.wsTerminalClient,
+                  pendingLaunchRequest = state.pendingTerminalLaunch,
+                  onLaunchRequestConsumed = { viewModel.clearPendingTerminalLaunch() },
+                  onSaveWebSocketUrl = { viewModel.updateWebSocketUrl(it) },
+                  isContainerVisible = terminalShown,
+                  onClose = { viewModel.selectPortraitDestination(PortraitDestination.EDITOR) },
                 )
               }
             }
@@ -1147,7 +1175,7 @@ private fun SidebarContent(
         snapshot = state.gitSnapshot,
         isBusy = state.gitBusy,
         errorBanner = state.gitError,
-        savedTokenPresent = viewModel.securePrefs.getGitToken().isNotBlank(),
+        savedTokenPresent = state.hasGitToken,
         diffTarget = state.diffTarget,
         diffLines = state.diffLines,
         onDismissError = { viewModel.dismissGitError() },
