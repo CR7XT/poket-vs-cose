@@ -48,6 +48,7 @@ class EditorTypingTest {
   private fun waitUntil(timeoutMs: Long = 8000, cond: () -> Boolean) {
     val end = System.currentTimeMillis() + timeoutMs
     while (System.currentTimeMillis() < end) {
+      composeRule.mainClock.advanceTimeBy(250)
       composeRule.waitForIdle()
       org.robolectric.shadows.ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS)
       if (cond()) return
@@ -74,9 +75,18 @@ class EditorTypingTest {
       ed.isEditable,
     )
 
+    // Let the load effect (setText for the new tab) finish before typing.
+    repeat(20) { waitUntil(100) { false } }
+    val current = editor()
+    assertEquals("editor instance must stay the same while idle", true, current === ed)
     composeRule.runOnUiThread { ed!!.insertText("print(1)", 8) }
+    val immediate = activeContent()
     waitUntil { activeContent() == "print(1)" }
-    assertEquals("insertText must reach the view model", "print(1)", activeContent())
+    assertEquals(
+      "insertText must reach the view model (immediate='$immediate', editor text='${ed!!.text}', editable=${ed.isEditable})",
+      "print(1)",
+      activeContent(),
+    )
 
     // Same path the soft keyboard uses.
     composeRule.runOnUiThread {
