@@ -191,7 +191,9 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         refreshGitInternal()
         val paths = _uiState.value.allFilePaths
         val defaultPath = paths.firstOrNull { it == "main.py" } ?: paths.firstOrNull()
-        if (defaultPath != null) {
+        // Skip if the user already opened/created a file while startup was still running,
+        // otherwise this would steal the active tab from what they just made.
+        if (defaultPath != null && _uiState.value.activeTabPath == null) {
           // Startup open must not yank the user off a screen they already navigated to.
           openFileInternal(defaultPath, targetLine = null, focusEditor = false)
         }

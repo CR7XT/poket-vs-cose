@@ -35,7 +35,9 @@ import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.widget.EditorSearcher
 import io.github.rosemoe.sora.widget.SelectionMovement
 
-private const val BUSY_WATCHDOG_MS = 800L
+private const val LOCK_POLL_MS = 400L
+private const val LOCK_BASE_GRACE_MS = 2500L
+private const val LOCK_MAX_GRACE_MS = 15000L
 
 enum class CursorDirection {
   LEFT,
@@ -188,19 +190,24 @@ fun SoraCodeEditorView(
   // stays that way, unlock it and, if it still will not accept input, show why on screen.
   LaunchedEffect(editorInstance) {
     val ed = editorInstance ?: return@LaunchedEffect
-    var lockedTicks = 0
+    var lockedMs = 0L
     while (true) {
-      delay(400)
+      delay(LOCK_POLL_MS)
       if (ed.isEditable) {
-        lockedTicks = 0
+        lockedMs = 0L
         if (lockedInfo != null) lockedInfo = null
       } else {
-        lockedTicks++
-        if (ed.editable && !ed.isFormatting) runCatching { ed.setLayoutBusy(false) }
-        if (lockedTicks >= 3) {
-          lockedInfo =
-            "Editor locked (editable=${ed.editable}, formatting=${ed.isFormatting}, " +
-              "enabled=${ed.isEnabled}). Tap to unlock."
+        lockedMs += LOCK_POLL_MS
+        // Give Sora's own layout time to finish first (bigger files take longer) so we never
+        // unlock it mid-initialisation; only force it once it is clearly stuck.
+        val grace = (LOCK_BASE_GRACE_MS + ed.text.length / 20L).coerceAtMost(LOCK_MAX_GRACE_MS)
+        if (lockedMs >= grace) {
+          if (ed.editable && !ed.isFormatting) runCatching { ed.setLayoutBusy(false) }
+          if (lockedMs >= grace + 3 * LOCK_POLL_MS) {
+            lockedInfo =
+              "Editor locked (editable=${ed.editable}, formatting=${ed.isFormatting}, " +
+                "enabled=${ed.isEnabled}). Tap to unlock."
+          }
         }
       }
     }
@@ -274,13 +281,6 @@ fun SoraCodeEditorView(
       loadedPath = tab.relativePath
       loadedLanguage = tab.language
       suppressChangeRef[0] = false
-      // Sora reports isEditable == false while its async layout is "busy" and ignores all typing
-      // until that finishes. If the completion callback is ever lost (view re-attached, lifecycle
-      // race, new empty file) the editor stays read-only forever. Force it back to usable.
-      ed.postDelayed(
-        { if (ed.editable && !ed.isEditable) ed.setLayoutBusy(false) },
-        BUSY_WATCHDOG_MS,
-      )
       currentOnCursorChanged(targetLine + 1, targetCol + 1, "", ed.canUndo(), ed.canRedo())
     } else if (loadedLanguage != tab.language) {
       ed.setEditorLanguage(TextMateSetup.createLanguage(tab.language))
