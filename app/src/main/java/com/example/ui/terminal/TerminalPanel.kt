@@ -104,6 +104,8 @@ class TerminalLaunchRequest(
   val title: String,
   val command: String,
   val useProotIfAvailable: Boolean = true,
+  /** Command only makes sense inside Ubuntu (apt/pip/npm installs): never fall back to Android sh. */
+  val requireUbuntu: Boolean = false,
 )
 
 /**
@@ -187,6 +189,9 @@ fun TerminalPanel(
     val req = pendingLaunchRequest ?: return@LaunchedEffect
     if (req.useProotIfAvailable && prootDiagnostics.isProotAvailable && rootfsManager.isRootfsInstalled()) {
       createProotTab(req.title, req.command)
+    } else if (req.requireUbuntu) {
+      // Send the user to the Ubuntu setup pane instead of running apt/pip in Android's sh.
+      activeMode = TerminalMode.PROOT_UBUNTU
     } else {
       createLocalShTab(req.title, req.command)
     }

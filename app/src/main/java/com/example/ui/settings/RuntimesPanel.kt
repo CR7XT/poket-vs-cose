@@ -82,11 +82,13 @@ private fun buildCustomCommand(kind: CustomKind, input: String): String =
     CustomKind.SHELL -> input
   }
 
-fun isAllFilesAccessGranted(): Boolean =
+fun isAllFilesAccessGranted(context: Context): Boolean =
   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
     runCatching { Environment.isExternalStorageManager() }.getOrDefault(false)
   } else {
-    false
+    // API 26-29: classic runtime storage permission.
+    context.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+      android.content.pm.PackageManager.PERMISSION_GRANTED
   }
 
 private fun openAllFilesSettings(context: Context) {
@@ -113,11 +115,11 @@ private fun openAllFilesSettings(context: Context) {
 fun AllFilesAccessCard() {
   val palette = LocalIdePalette.current
   val context = LocalContext.current
-  var granted by remember { mutableStateOf(isAllFilesAccessGranted()) }
+  var granted by remember { mutableStateOf(isAllFilesAccessGranted(context)) }
   val lifecycleOwner = LocalLifecycleOwner.current
   DisposableEffect(lifecycleOwner) {
     val observer = LifecycleEventObserver { _, event ->
-      if (event == Lifecycle.Event.ON_RESUME) granted = isAllFilesAccessGranted()
+      if (event == Lifecycle.Event.ON_RESUME) granted = isAllFilesAccessGranted(context)
     }
     lifecycleOwner.lifecycle.addObserver(observer)
     onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -130,8 +132,23 @@ fun AllFilesAccessCard() {
     fontSize = 11.sp,
     fontWeight = FontWeight.Medium,
   )
+  val legacyPermissionLauncher =
+    androidx.activity.compose.rememberLauncherForActivityResult(
+      androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { granted = isAllFilesAccessGranted(context) }
   Button(
-    onClick = { openAllFilesSettings(context) },
+    onClick = {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        openAllFilesSettings(context)
+      } else {
+        legacyPermissionLauncher.launch(
+          arrayOf(
+            android.Manifest.permission.READ_EXTERNAL_STORAGE,
+            android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
+          )
+        )
+      }
+    },
     modifier = Modifier.fillMaxWidth().testTag("grant_all_files_button"),
   ) {
     Text(if (granted) "Manage all-files access" else "Grant all-files access")

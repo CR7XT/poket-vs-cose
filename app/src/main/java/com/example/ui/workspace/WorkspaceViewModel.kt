@@ -943,10 +943,11 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     }
   }
 
-  fun launchTerminalCommand(title: String, command: String) {
+  fun launchTerminalCommand(title: String, command: String, requireUbuntu: Boolean = false) {
     _uiState.update {
       it.copy(
-        pendingTerminalLaunch = TerminalLaunchRequest(title = title, command = command),
+        pendingTerminalLaunch =
+          TerminalLaunchRequest(title = title, command = command, requireUbuntu = requireUbuntu),
         portraitDestination = PortraitDestination.TERMINAL,
         isBottomTerminalOpenLandscape = true,
       )
