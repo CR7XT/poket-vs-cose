@@ -60,7 +60,9 @@ class UbuntuRootfsManager(
 
   fun inspectDiagnostics(): ProotDiagnostics {
     val abis = Build.SUPPORTED_ABIS.toList()
-    val nativeDir = File(context.applicationInfo.nativeLibraryDir)
+    // nativeLibraryDir can be null in some environments (e.g. unit tests); never crash the UI on it.
+    val nativeDirPath: String? = context.applicationInfo.nativeLibraryDir
+    val nativeDir = File(nativeDirPath ?: context.filesDir.absolutePath)
     val prootFile = File(nativeDir, "libproot.so")
     val available = prootFile.exists() && prootFile.canExecute()
     return ProotDiagnostics(

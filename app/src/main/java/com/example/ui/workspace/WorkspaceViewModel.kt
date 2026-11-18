@@ -192,7 +192,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         val paths = _uiState.value.allFilePaths
         val defaultPath = paths.firstOrNull { it == "main.py" } ?: paths.firstOrNull()
         if (defaultPath != null) {
-          openFileInternal(defaultPath, targetLine = null)
+          // Startup open must not yank the user off a screen they already navigated to.
+          openFileInternal(defaultPath, targetLine = null, focusEditor = false)
         }
       }.onFailure { err ->
         _uiState.update { it.copy(isLoading = false, errorMessage = err.localizedMessage) }
@@ -218,13 +219,18 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     viewModelScope.launch { openFileInternal(relativePath, targetLine) }
   }
 
-  private suspend fun openFileInternal(relativePath: String, targetLine: Int?) {
+  private suspend fun openFileInternal(
+    relativePath: String,
+    targetLine: Int?,
+    focusEditor: Boolean = true,
+  ) {
     val existing = _uiState.value.tabs.firstOrNull { it.relativePath == relativePath }
     if (existing != null) {
       _uiState.update {
         it.copy(
           activeTabPath = relativePath,
-          portraitDestination = PortraitDestination.EDITOR,
+          portraitDestination =
+            if (focusEditor) PortraitDestination.EDITOR else it.portraitDestination,
           pendingJumpLine = targetLine,
           isCommandPaletteOpen = false,
           isMarkdownPreviewActive = if (targetLine != null) false else it.isMarkdownPreviewActive,
@@ -247,7 +253,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         it.copy(
           tabs = it.tabs + newTab,
           activeTabPath = relativePath,
-          portraitDestination = PortraitDestination.EDITOR,
+          portraitDestination =
+            if (focusEditor) PortraitDestination.EDITOR else it.portraitDestination,
           pendingJumpLine = targetLine,
           isCommandPaletteOpen = false,
           errorMessage = null,
