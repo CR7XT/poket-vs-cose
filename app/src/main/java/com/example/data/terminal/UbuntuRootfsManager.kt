@@ -106,6 +106,8 @@ class UbuntuRootfsManager(
         val archiveName = parts[1].removePrefix("*")
         val downloadUrl = "$UBUNTU_RELEASE_BASE_URL$archiveName"
 
+        // cacheDir can be missing after the system clears app cache -> ENOENT on open.
+        context.cacheDir.mkdirs()
         val archiveFile = File(context.cacheDir, archiveName)
         if (archiveFile.exists()) archiveFile.delete()
 
@@ -266,13 +268,27 @@ class UbuntuRootfsManager(
                   if (target.exists()) target.delete()
                   runCatching { Os.symlink(entry.linkName, target.absolutePath) }
                 }
-                else -> {
+                entry.isLink -> {
+                  // Hard link: the entry has no data; copy the already-extracted target.
+                  val src = File(rootCanonical, entry.linkName.removePrefix("./")).canonicalFile
+                  if (!src.path.startsWith(rootPrefix)) {
+                    throw SecurityException("Blocked unsafe TAR link: ${entry.name}")
+                  }
+                  target.parentFile?.mkdirs()
+                  if (target.exists()) target.delete()
+                  if (src.isFile) {
+                    src.copyTo(target, overwrite = true)
+                    runCatching { Os.chmod(target.absolutePath, entry.mode and 0x1FF) }
+                  }
+                }
+                entry.isFile -> {
                   target.parentFile?.mkdirs()
                   FileOutputStream(target).use { out -> tar.copyTo(out) }
                   if (entry.mode != 0) {
                     runCatching { Os.chmod(target.absolutePath, entry.mode and 0x1FF) }
                   }
                 }
+                else -> Unit // skip devices/fifos
               }
               count++
               if (count % 100 == 0) {
